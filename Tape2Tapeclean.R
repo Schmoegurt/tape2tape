@@ -10,6 +10,7 @@ file_name <- c('~/HockeyStuff/Tape2TapeData/11_10_plays.csv')
 players_file_name <- c('~/HockeyStuff/Tape2TapeData/11_10_roster.csv')
 
 pbp <- read_csv(file_name)
+players <- read_csv(players_file_name)
 
 #Fix game time and turn it into integer for seconds
 pbp$periodTime <- as.character(pbp$periodTime)
@@ -26,4 +27,14 @@ pbp$periodTime <- ifelse(pbp$period == 4, pbp$periodTime + 3600, pbp$periodTime)
 #converting playerids to playernames
 pbp[4:15] <- pbp %>% select(awayPlayer0Id:homePlayer5Id) %>%
     sapply(convert_ids, player_df = players)
+
+pbp[,c('player0Id', 'player1Id', 'pass0player0Id', 'pass0player1Id', 
+       'pass1player0Id', 'pass1player1Id', 'pass2player0Id', 'pass2player1Id',
+       'pass3player0Id', 'pass3player1Id', 
+       'pass4player0Id', 'pass4player1Id')] <- 
+    pbp[,c('player0Id', 'player1Id', 'pass0player0Id', 'pass0player1Id', 
+           'pass1player1Id', 'pass1player1Id', 'pass2player0Id', 'pass2player1Id',
+           'pass3player0Id', 'pass3player1Id', 'pass4player0Id', 
+           'pass4player1Id')] %>% sapply(convert_ids, player_df = players)
+
 
