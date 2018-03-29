@@ -1,0 +1,153 @@
+---
+title: "Plotting Tape2Tape"
+author: "Matthew Barlowe"
+date: "3/28/2018"
+output: html_document
+---
+## Tape 2 Tape Data
+
+Ok today I'm going to be going over a few of the ways you can graph Tape 2 tape
+data and show the different types of zone entrys and shot assists on a rink diagram.
+For this excercise you will need R installed along with the `tidyverse` package.
+`tidyverse` is actually a collection of packages, and you probably won't need 
+all of them for this excercise, but I just find it's easier to load them all at 
+once.
+
+This tutorial will be written from the stand point of someone who is pretty new
+to R so if you've just started don't worry. However, you have some familiarty 
+with at least being able to run scripts in R, Rstuido, and some basic syntax 
+such as `<-` assignment and function notation. Ok lets get to work.
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+```
+
+## The Data
+
+Ok first thing to do is to import the data into a dataframe. You can think of a
+dataframe as kind of like an excel spreadsheet as there are rows and columns with
+values located at the intersection of each row with each column. I'm going to
+do this using the `read_csv` function that is in the `readr` package that will 
+be loading into the script when we used `library()` on it up above.
+
+`readr` is mainly a packge for reading in character delimited files such as csv
+files but also tab delimited files, or my personal favorite `|` delimited files.
+In this instance we will be reading in a csv file hence the use of `read_csv`.
+
+The data comes in two files: one contains the actual play by play that has been 
+tracked and another that has each player along with their skater ids. We'll need
+that second file because as you'll see with the play by play file each player 
+is identified by their id instead of their name. Ok lets get the data in and
+get to work.
+
+```{r cars}
+file_name <- c('~/HockeyStuff/Tape2TapeData/Tape2Tape/11_10_plays.csv')
+players_file_name <- c('~/HockeyStuff/Tape2TapeData/Tape2Tape/11_10_roster.csv')
+
+pbp <- read_csv(file_name)
+players <- read_csv(players_file_name)
+```
+
+Ok what I've done here is I've stored the path to the files as they would be on 
+my computer into a variable and then read those variables into my dataframes I've
+named `pbp` and `players`. You can just put the file path in the `read_csv` function
+itself but is always good coding practice to store it in a variable and then use
+that variable throughout the script. 
+
+One reason is that it saves you from having 
+to cut and paste/type a lot, and another is that if you wanted to run the same
+script on another set of data all you would have to do is change that one variable
+instead of multiple if you were reading it in at multiple points in your script. 
+
+And so you can see the output that shows us that the files were read in succesfully.
+You don't really need to know what the output is, but its just telling you that
+it parsed certain columns with certain specifications such as the `periodTime` 
+columns was read in as a time format etc. Again not much you need to worry about. 
+Let's take a look at the data.
+
+```{r pressure, echo=FALSE}
+head(pbp)
+```
+
+The `head()` function will return the first six rows of any dataframe, and you 
+can see all the different columns and we'll have a brief break down of each one:
+```
+period: the period the event took place in
+periodTime: the score keepers time for each event
+periodTimeRemaining: what the clock would be if you were watching the game
+awayPlayer0Id...awayPlayer6Id: the six away players on the ice for event includes goalie
+homePlayer0Id...homePlayer0Id: same as away but with home players
+event: the main events tracked by Tape2Tape which include Zone Entry, Zone Exit, 
+        Blocked Shot, Shot, Missed Shot, and Goal
+eventType: this column further describes the event column. Will describe type of
+            shot and type of Zone Exit/Entry as either Uncontrolled, Failed, or
+            Controlled
+eventResult: Lost or Recovered. This will only refer to Uncontrolled Zone Exits 
+        and Entries
+eventTeam: Tells the team that performed the event in the event column
+x0, y0: This is the location of the event on the ice, there will only be a 
+        corresponding x1, y1 value if the event was a zone exit created by a pass
+
+plyer0Id, player1Id: Player0 is the player that performed the event in the event
+                    column. If the event is a pass then player 0 is the passer and
+                    player1 is the player that recieved the pass.
+pass0x0, pass0y0...:These columns detail the passes that lead up to the event in 
+                    the event column. pass0 is the pass right before the event,
+                    pass1 is the pass before that etc.
+```
+The `players` dataframe is a lot more straightforward and the columns are 
+self explanatory so we won't go over them. Ok let's convert all the user Ids
+in the play by play dataframe to actual players names to make looking at the 
+data and subsetting it easier.
+
+```{r}
+#convert player ids to actual player names from the player dataframe
+convert_ids <- function(column, player_df){
+    column <- player_df[match(column, player_df$playerId, nomatch = column), 
+                        c('fullName')]
+}
+
+#converting playerids to playernames
+pbp[4:15] <- pbp %>% select(awayPlayer0Id:homePlayer5Id) %>%
+    sapply(convert_ids, player_df = players)
+
+pbp[,c('player0Id', 'player1Id', 'pass0player0Id', 'pass0player1Id', 
+       'pass1player0Id', 'pass1player1Id', 'pass2player0Id', 'pass2player1Id',
+       'pass3player0Id', 'pass3player1Id', 
+       'pass4player0Id', 'pass4player1Id')] <- 
+    pbp[,c('player0Id', 'player1Id', 'pass0player0Id', 'pass0player1Id', 
+           'pass1player1Id', 'pass1player1Id', 'pass2player0Id', 'pass2player1Id',
+           'pass3player0Id', 'pass3player1Id', 'pass4player0Id', 
+           'pass4player1Id')] %>% sapply(convert_ids, player_df = players)
+```
+
+Ok let's go over the code a bit here. The first part is a function I created 
+that gets passed a column and a dataframe. This dataframe is the `players` dataframe
+we created earlier. So this function goes along the column we pass to it and matches
+the Id to the Id in the `players` dataframe and then returns the value from 
+the `fullname` column in the `players` dataframe. 
+
+Once it does that for 
+every value in the column its returns those names and we store it in the same 
+column variable and then we'll overwrite the the columns from the `pbp` 
+dataframe with names instead of ids. 
+
+The next part of the code is us applying
+that function to all the columns we need to in the `pbp` dataframe using 
+`sapply`. `sapply` is similar to a loop as it does a repeated action over
+and over again given certain conditions, but behind the scenes things are quite
+different. R is built around what's called vectorized operations because
+R is slow when dealing with memory allocation and it is that reason that loops
+run so slow in R. When you use the `apply` group functions or `plyr` functions
+R automatically takes care of all those memory issues making things run faster
+even though they actually use for loops inside their own source code.
+
+But back to our `sapply` so all I'm doing is moving over all these columns and
+looking up the player name for each player id and copying that to our new column.
+This will allow us to break down our graphs to look at certain stats my player
+name without having to consult the `players` dataframe anymore. So now that's 
+done lets get to graphing.
+
+## Creating the Rink
